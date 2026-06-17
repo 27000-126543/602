@@ -33,7 +33,9 @@ const AlertCenter = () => {
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(() => {
     return searchParams.get('alertId');
   });
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState(() => {
+    return searchParams.get('search') || '';
+  });
   const [approvalComment, setApprovalComment] = useState('');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [approvalAction, setApprovalAction] = useState<'approve' | 'reject'>('approve');
@@ -46,8 +48,9 @@ const AlertCenter = () => {
     const params: Record<string, string> = {};
     if (activeTab !== 'all') params.tab = activeTab;
     if (selectedAlertId) params.alertId = selectedAlertId;
+    if (searchText) params.search = searchText;
     setSearchParams(params, { replace: true });
-  }, [activeTab, selectedAlertId, setSearchParams]);
+  }, [activeTab, selectedAlertId, searchText, setSearchParams]);
 
   const getMyApprovalLevel = () => {
     if (!user) return 0;
@@ -141,7 +144,6 @@ const AlertCenter = () => {
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
-    setSelectedAlertId(null);
   };
 
   const handleAlertClick = (alertId: string) => {

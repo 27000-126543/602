@@ -8,7 +8,7 @@ import {
   Shield,
   Building2,
   MapPin,
-  User,
+  User as UserIcon,
   Filter,
   Check,
   Settings,
@@ -16,94 +16,14 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { UserRole } from '@/types';
+import { UserRole, User } from '@/types';
 import { roleNames, regionNames } from '@/data/mock/users';
 import { venues } from '@/data/mock/venues';
+import { useUserStore } from '@/store/useUserStore';
 
-interface UserItem {
-  id: string;
-  username: string;
-  name: string;
-  role: UserRole;
-  region?: string;
-  venueId?: string;
-  avatar: string;
+type UserItem = User & {
   status: 'active' | 'disabled';
-}
-
-const initialUsers: UserItem[] = [
-  {
-    id: 'u001',
-    username: 'admin',
-    name: '张总监',
-    role: 'headquarters',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
-    status: 'active',
-  },
-  {
-    id: 'u002',
-    username: 'region_east',
-    name: '李经理',
-    role: 'region',
-    region: 'east',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=east',
-    status: 'active',
-  },
-  {
-    id: 'u003',
-    username: 'venue_sh',
-    name: '王主管',
-    role: 'venue',
-    venueId: 'v001',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=shanghai',
-    status: 'active',
-  },
-  {
-    id: 'u004',
-    username: 'region_south',
-    name: '陈经理',
-    role: 'region',
-    region: 'south',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=south',
-    status: 'active',
-  },
-  {
-    id: 'u005',
-    username: 'venue_gz',
-    name: '刘主管',
-    role: 'venue',
-    venueId: 'v002',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=guangzhou',
-    status: 'active',
-  },
-  {
-    id: 'u006',
-    username: 'region_north',
-    name: '赵经理',
-    role: 'region',
-    region: 'north',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=north',
-    status: 'active',
-  },
-  {
-    id: 'u007',
-    username: 'venue_cd',
-    name: '孙主管',
-    role: 'venue',
-    venueId: 'v005',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=chengdu',
-    status: 'disabled',
-  },
-  {
-    id: 'u008',
-    username: 'venue_wh',
-    name: '周主管',
-    role: 'venue',
-    venueId: 'v007',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wuhan',
-    status: 'active',
-  },
-];
+};
 
 const rolePermissions: Record<UserRole, string[]> = {
   headquarters: [
@@ -124,7 +44,7 @@ const rolePermissions: Record<UserRole, string[]> = {
 };
 
 const PermissionManage = () => {
-  const [users, setUsers] = useState<UserItem[]>(initialUsers);
+  const { users, addUser, updateUser, deleteUser, toggleUserStatus } = useUserStore();
   const [searchText, setSearchText] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'users' | 'roles'>('users');
@@ -165,7 +85,7 @@ const PermissionManage = () => {
     }
   };
 
-  const getRegionOrVenueName = (user: UserItem) => {
+  const getRegionOrVenueName = (user: User) => {
     if (user.region) return regionNames[user.region] || '';
     if (user.venueId) {
       const venue = venues.find(v => v.id === user.venueId);
@@ -187,8 +107,8 @@ const PermissionManage = () => {
     setShowAddModal(true);
   };
 
-  const handleEdit = (user: UserItem) => {
-    setEditingUser(user);
+  const handleEdit = (user: User) => {
+    setEditingUser(user as UserItem);
     setFormData({
       username: user.username,
       name: user.name,
@@ -202,16 +122,12 @@ const PermissionManage = () => {
 
   const handleDelete = (id: string) => {
     if (window.confirm('确定要删除该用户吗？')) {
-      setUsers(users.filter(u => u.id !== id));
+      deleteUser(id);
     }
   };
 
   const handleToggleStatus = (id: string) => {
-    setUsers(users.map(u => 
-      u.id === id 
-        ? { ...u, status: u.status === 'active' ? 'disabled' : 'active' } 
-        : u
-    ));
+    toggleUserStatus(id);
   };
 
   const handleSubmit = () => {
@@ -221,35 +137,32 @@ const PermissionManage = () => {
     }
     
     if (editingUser) {
-      setUsers(users.map(u => 
-        u.id === editingUser.id 
-          ? { 
-              ...u, 
-              username: formData.username, 
-              name: formData.name, 
-              role: formData.role,
-              region: formData.role === 'region' ? formData.region : undefined,
-              venueId: formData.role === 'venue' ? formData.venueId : undefined,
-            } 
-          : u
-      ));
+      const updates: any = {
+        username: formData.username,
+        name: formData.name,
+        role: formData.role,
+        region: formData.role === 'region' ? formData.region : undefined,
+        venueId: formData.role === 'venue' ? formData.venueId : undefined,
+      };
+      if (formData.password) {
+        updates.password = formData.password;
+      }
+      updateUser(editingUser.id, updates);
     } else {
       if (!formData.password) {
         alert('请设置密码');
         return;
       }
       
-      const newUser: UserItem = {
-        id: 'u' + Date.now(),
+      addUser({
         username: formData.username,
+        password: formData.password,
         name: formData.name,
         role: formData.role,
         region: formData.role === 'region' ? formData.region : undefined,
         venueId: formData.role === 'venue' ? formData.venueId : undefined,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.username}`,
         status: 'active',
-      };
-      setUsers([...users, newUser]);
+      });
     }
     
     setShowAddModal(false);

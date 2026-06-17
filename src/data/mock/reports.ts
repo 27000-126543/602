@@ -52,11 +52,18 @@ export const getTrafficComparison = (industry?: string) => {
   }
   
   const factor = industryFactors[industry] || 1;
+  const seed = industry.charCodeAt(0) + industry.charCodeAt(1);
   
   return {
     weeks,
-    actualVisitors: baseActual.map(v => Math.round(v * factor)),
-    expectedVisitors: baseExpected.map(v => Math.round(v * factor * 1.05)),
+    actualVisitors: baseActual.map((v, i) => {
+      const randomFactor = 0.8 + ((seed * (i + 1)) % 6) / 10;
+      return Math.max(0, Math.round(v * factor * randomFactor));
+    }),
+    expectedVisitors: baseExpected.map((v, i) => {
+      const randomFactor = 0.85 + ((seed * (i + 2)) % 4) / 10;
+      return Math.max(0, Math.round(v * factor * randomFactor * 1.05));
+    }),
   };
 };
 
@@ -76,8 +83,40 @@ export const getIndustryDistribution = (highlightIndustry?: string) => {
     return baseData;
   }
   
-  return baseData.map(item => ({
+  const industryFactors: Record<string, number> = {
+    '电子信息': 2.5,
+    '机械制造': 2.2,
+    '服装纺织': 2.0,
+    '食品饮料': 1.8,
+    '医疗健康': 1.9,
+    '建筑建材': 1.7,
+    '汽车配件': 1.75,
+    '文化创意': 1.6,
+  };
+  
+  const factor = industryFactors[highlightIndustry] || 1.5;
+  
+  let modifiedData = baseData.map(item => {
+    if (item.name === highlightIndustry) {
+      const newValue = Math.round(item.value * factor);
+      return {
+        ...item,
+        value: newValue,
+        highlighted: true,
+      };
+    }
+    return {
+      ...item,
+      value: Math.round(item.value * 0.6),
+      highlighted: false,
+    };
+  });
+  
+  const totalValue = modifiedData.reduce((sum, item) => sum + item.value, 0);
+  modifiedData = modifiedData.map(item => ({
     ...item,
-    highlighted: item.name === highlightIndustry,
+    percentage: Math.round((item.value / totalValue) * 1000) / 10,
   }));
+  
+  return modifiedData.sort((a, b) => b.value - a.value);
 };

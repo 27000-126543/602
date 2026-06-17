@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Venue, Alert, Contract, WeeklyReport, ProvinceData, RankingItem, Exhibitor } from '@/types';
+import { Venue, Alert, Contract, WeeklyReport, ProvinceData, RankingItem, Exhibitor, AlertStatus } from '@/types';
 import { venues, getVenueById } from '@/data/mock/venues';
 import { alerts, getAlerts, getAlertById, getApprovalRecords, approvalRecords } from '@/data/mock/alerts';
 import { contracts, getContracts, getAbnormalContracts } from '@/data/mock/contracts';
@@ -11,6 +11,8 @@ import { useAuthStore } from './useAuthStore';
 interface DataState {
  selectedIndustry: string;
  selectedProvince: string | null;
+ alerts: Alert[];
+ approvalRecords: Record<string, any[]>;
  setSelectedIndustry: (industry: string) => void;
  setSelectedProvince: (province: string | null) => void;
  getVenues: () => Venue[];
@@ -53,13 +55,18 @@ export const useDataStore = create<DataState>((set, get) => {
  return {
  selectedIndustry: 'all',
  selectedProvince: null,
+ alerts: [...alerts],
+ approvalRecords: { ...approvalRecords },
  setSelectedIndustry: (industry) => set({ selectedIndustry: industry }),
  setSelectedProvince: (province) => set({ selectedProvince: province }),
  getVenues: () => filterByRole(venues),
  getVenueById: (id) => getVenueById(id),
  getAlerts: (status) => {
  const user = useAuthStore.getState().user;
- let result = getAlerts(status);
+ let result = get().alerts;
+ if (status && status !== 'all') {
+   result = result.filter(a => a.status === status);
+ }
  if (user?.role === 'region' && user.region) {
  const regionVenues = venues.filter(v => v.region === user.region).map(v => v.id);
  result = result.filter(a => regionVenues.includes(a.venueId));
@@ -69,8 +76,8 @@ export const useDataStore = create<DataState>((set, get) => {
  }
  return result;
  },
- getAlertById: (id) => getAlertById(id),
- getApprovalRecords: (alertId) => getApprovalRecords(alertId),
+ getAlertById: (id) => get().alerts.find(a => a.id === id),
+ getApprovalRecords: (alertId) => get().approvalRecords[alertId] || [],
  getContracts: (venueId) => {
  const user = useAuthStore.getState().user;
  let result = getContracts(venueId);
@@ -115,47 +122,84 @@ export const useDataStore = create<DataState>((set, get) => {
  return 87.5;
  },
  approveAlert: (alertId, level, comment) => {
- const records = approvalRecords[alertId];
+ const state = get();
+ const records = state.approvalRecords[alertId];
  if (!records)
  return false;
- const record = records.find(r => r.level === level);
- if (!record || record.status !== 'pending')
+ const recordIndex = records.findIndex(r => r.level === level);
+ if (recordIndex < 0 || records[recordIndex].status !== 'pending')
  return false;
+ 
  const user = useAuthStore.getState().user;
- record.status = 'approved';
- record.approver = user?.name || '';
- record.approverRole = user?.role || '';
- record.comment = comment;
- record.createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
- const alertIndex = alerts.findIndex(a => a.id === alertId);
- if (alertIndex >= 0) {
- alerts[alertIndex].currentApprovalLevel = level;
- if (level >= 3) {
- alerts[alertIndex].status = 'resolved';
- }
- else {
- alerts[alertIndex].status = 'processing';
- }
- }
+ const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+ 
+ const newRecords = [...records];
+ newRecords[recordIndex] = {
+   ...newRecords[recordIndex],
+   status: 'approved',
+   approver: user?.name || '',
+   approverRole: user?.role || '',
+   comment,
+   createdAt: now,
+ };
+ 
+ const newAlerts = state.alerts.map(alert => {
+   if (alert.id !== alertId) return alert;
+   return {
+     ...alert,
+     currentApprovalLevel: level,
+     status: (level >= 3 ? 'resolved' : 'processing') as AlertStatus,
+   };
+ });
+ 
+ set({
+   alerts: newAlerts,
+   approvalRecords: {
+     ...state.approvalRecords,
+     [alertId]: newRecords,
+   },
+ });
+ 
  return true;
  },
  rejectAlert: (alertId, level, comment) => {
- const records = approvalRecords[alertId];
+ const state = get();
+ const records = state.approvalRecords[alertId];
  if (!records)
  return false;
- const record = records.find(r => r.level === level);
- if (!record || record.status !== 'pending')
+ const recordIndex = records.findIndex(r => r.level === level);
+ if (recordIndex < 0 || records[recordIndex].status !== 'pending')
  return false;
+ 
  const user = useAuthStore.getState().user;
- record.status = 'rejected';
- record.approver = user?.name || '';
- record.approverRole = user?.role || '';
- record.comment = comment;
- record.createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
- const alertIndex = alerts.findIndex(a => a.id === alertId);
- if (alertIndex >= 0) {
- alerts[alertIndex].status = 'rejected';
- }
+ const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+ 
+ const newRecords = [...records];
+ newRecords[recordIndex] = {
+   ...newRecords[recordIndex],
+   status: 'rejected',
+   approver: user?.name || '',
+   approverRole: user?.role || '',
+   comment,
+   createdAt: now,
+ };
+ 
+ const newAlerts = state.alerts.map(alert => {
+   if (alert.id !== alertId) return alert;
+   return {
+     ...alert,
+     status: 'rejected' as AlertStatus,
+   };
+ });
+ 
+ set({
+   alerts: newAlerts,
+   approvalRecords: {
+     ...state.approvalRecords,
+     [alertId]: newRecords,
+   },
+ });
+ 
  return true;
  },
  };

@@ -1,4 +1,5 @@
 import { User } from '@/types';
+import { useUserStore } from '@/store/useUserStore';
 
 export const mockUsers: (User & { password: string })[] = [
   {
@@ -48,8 +49,16 @@ export const mockUsers: (User & { password: string })[] = [
 ];
 
 export const loginUser = (username: string, password: string, role: string): User | null => {
-  const user = mockUsers.find(u => u.username === username && u.password === password && u.role === role);
-  return user || null;
+  const storeUser = useUserStore.getState().getUserByCredentials(username, password, role);
+  if (storeUser) return storeUser;
+  
+  const mockUser = mockUsers.find(u => u.username === username && u.password === password && u.role === role);
+  if (mockUser) {
+    const { password: _, ...userWithoutPassword } = mockUser;
+    return userWithoutPassword as User;
+  }
+  
+  return null;
 };
 
 export const roleNames: Record<string, string> = {

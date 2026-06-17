@@ -7,7 +7,8 @@ export interface User {
   role: UserRole;
   region?: string;
   venueId?: string;
-  avatar?: string;
+  avatar: string;
+  status?: 'active' | 'disabled';
 }
 
 export interface Venue {

@@ -3,14 +3,14 @@ import { ProvinceData, RankingItem } from '@/types';
 const industryList = ['电子信息', '机械制造', '服装纺织', '食品饮料', '建筑建材', '医疗健康', '汽车配件', '文化创意'];
 
 const industryFactors: Record<string, number> = {
-  '电子信息': 1.2,
-  '机械制造': 0.9,
-  '服装纺织': 0.85,
-  '食品饮料': 0.75,
-  '建筑建材': 0.7,
-  '医疗健康': 0.8,
-  '汽车配件': 0.65,
-  '文化创意': 0.6,
+  '电子信息': 1.35,
+  '机械制造': 0.95,
+  '服装纺织': 0.8,
+  '食品饮料': 0.7,
+  '建筑建材': 0.65,
+  '医疗健康': 0.9,
+  '汽车配件': 0.75,
+  '文化创意': 0.55,
 };
 
 export const provinceData: ProvinceData[] = [
@@ -69,13 +69,24 @@ export const getSatisfactionRanking = (industry?: string): RankingItem[] => {
   }
   
   const factor = industryFactors[industry] || 1;
+  const seed = industry.charCodeAt(0) + industry.charCodeAt(1);
   
-  return baseSatisfactionRanking.map((item, index) => ({
-    ...item,
-    rank: index + 1,
-    value: Math.round((item.value * (0.9 + factor * 0.2)) * 10) / 10,
-    change: Math.round((item.change * factor) * 10) / 10,
-  }));
+  const modifiedRankings = baseSatisfactionRanking.map((item, index) => {
+    const randomFactor = 0.9 + ((seed * (index + 1)) % 5) / 10;
+    return {
+      ...item,
+      rank: 0,
+      value: Math.max(0, Math.round((item.value * randomFactor + (seed % 6) - 3) * 10) / 10),
+      change: Math.round((item.change * factor + (seed % 3) - 1) * 10) / 10,
+    };
+  });
+  
+  modifiedRankings.sort((a, b) => b.value - a.value);
+  modifiedRankings.forEach((item, index) => {
+    item.rank = index + 1;
+  });
+  
+  return modifiedRankings;
 };
 
 export const getProvinceData = (industry?: string): ProvinceData[] => {
@@ -84,13 +95,18 @@ export const getProvinceData = (industry?: string): ProvinceData[] => {
   }
   
   const factor = industryFactors[industry] || 1;
+  const seed = industry.charCodeAt(0) + industry.charCodeAt(1);
   
-  return provinceData.map(p => ({
-    ...p,
-    value: Math.round(p.value * factor),
-    exhibitionCount: Math.round(p.exhibitionCount * factor),
-    avgSatisfaction: Math.round((p.avgSatisfaction * (0.95 + factor * 0.1)) * 10) / 10,
-  }));
+  return provinceData.map((p, index) => {
+    const randomFactor = 0.7 + ((seed * (index + 1)) % 7) / 10;
+    const adjustedValue = Math.round(p.value * factor * randomFactor);
+    return {
+      ...p,
+      value: Math.max(0, adjustedValue),
+      exhibitionCount: Math.max(0, Math.round(p.exhibitionCount * factor * randomFactor)),
+      avgSatisfaction: Math.max(0, Math.round((p.avgSatisfaction * (0.9 + factor * 0.2) + (seed % 5) - 2) * 10) / 10),
+    };
+  });
 };
 
 export const getProvinceByName = (name: string): ProvinceData | undefined => {

@@ -5,14 +5,14 @@ import { useAuthStore } from '@/store/useAuthStore';
 
 const industries = [
   { id: 'all', name: '全部行业' },
-  { id: 'electronics', name: '电子信息' },
-  { id: 'machinery', name: '机械制造' },
-  { id: 'textile', name: '服装纺织' },
-  { id: 'food', name: '食品饮料' },
-  { id: 'medical', name: '医疗健康' },
-  { id: 'construction', name: '建筑建材' },
-  { id: 'auto', name: '汽车配件' },
-  { id: 'culture', name: '文化创意' },
+  { id: '电子信息', name: '电子信息' },
+  { id: '机械制造', name: '机械制造' },
+  { id: '服装纺织', name: '服装纺织' },
+  { id: '食品饮料', name: '食品饮料' },
+  { id: '医疗健康', name: '医疗健康' },
+  { id: '建筑建材', name: '建筑建材' },
+  { id: '汽车配件', name: '汽车配件' },
+  { id: '文化创意', name: '文化创意' },
 ];
 
 const Header = () => {

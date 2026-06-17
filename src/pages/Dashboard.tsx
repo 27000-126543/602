@@ -38,10 +38,11 @@ const Dashboard = () => {
   const venues = getVenues();
   const alerts = getAlerts();
   const pendingAlerts = alerts.filter(a => a.status === 'pending' || a.status === 'processing');
-  const provinceData = getProvinceData();
-  const satisfactionRanking = getSatisfactionRanking();
-  const industryDist = getIndustryDistribution();
-  const trafficData = getTrafficComparison();
+  
+  const provinceData = useMemo(() => getProvinceData(), [selectedIndustry]);
+  const satisfactionRanking = useMemo(() => getSatisfactionRanking(), [selectedIndustry]);
+  const industryDist = useMemo(() => getIndustryDistribution(), [selectedIndustry]);
+  const trafficData = useMemo(() => getTrafficComparison(), [selectedIndustry]);
 
   const todayVisitors = getTodayVisitors();
   const boothRate = getBoothOccupancyRate();
