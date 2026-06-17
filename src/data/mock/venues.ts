@@ -1,0 +1,148 @@
+import { Venue } from '@/types';
+
+export const venues: Venue[] = [
+  {
+    id: 'v001',
+    name: '国家会展中心（上海）',
+    city: '上海',
+    province: '上海市',
+    region: 'east',
+    totalBooths: 5000,
+    exhibitionCount: 128,
+    latitude: 31.1997,
+    longitude: 121.3398,
+  },
+  {
+    id: 'v002',
+    name: '广交会展馆',
+    city: '广州',
+    province: '广东省',
+    region: 'south',
+    totalBooths: 4500,
+    exhibitionCount: 96,
+    latitude: 23.0999,
+    longitude: 113.3603,
+  },
+  {
+    id: 'v003',
+    name: '中国国际展览中心（北京）',
+    city: '北京',
+    province: '北京市',
+    region: 'north',
+    totalBooths: 3800,
+    exhibitionCount: 85,
+    latitude: 39.9768,
+    longitude: 116.5127,
+  },
+  {
+    id: 'v004',
+    name: '深圳国际会展中心',
+    city: '深圳',
+    province: '广东省',
+    region: 'south',
+    totalBooths: 4200,
+    exhibitionCount: 105,
+    latitude: 22.6662,
+    longitude: 113.8235,
+  },
+  {
+    id: 'v005',
+    name: '成都世纪城新国际会展中心',
+    city: '成都',
+    province: '四川省',
+    region: 'west',
+    totalBooths: 2800,
+    exhibitionCount: 68,
+    latitude: 30.5882,
+    longitude: 104.0708,
+  },
+  {
+    id: 'v006',
+    name: '杭州国际博览中心',
+    city: '杭州',
+    province: '浙江省',
+    region: 'east',
+    totalBooths: 3200,
+    exhibitionCount: 72,
+    latitude: 30.2296,
+    longitude: 120.2145,
+  },
+  {
+    id: 'v007',
+    name: '武汉国际博览中心',
+    city: '武汉',
+    province: '湖北省',
+    region: 'central',
+    totalBooths: 2600,
+    exhibitionCount: 54,
+    latitude: 30.5342,
+    longitude: 114.3256,
+  },
+  {
+    id: 'v008',
+    name: '南京国际博览中心',
+    city: '南京',
+    province: '江苏省',
+    region: 'east',
+    totalBooths: 2400,
+    exhibitionCount: 62,
+    latitude: 32.0167,
+    longitude: 118.7333,
+  },
+  {
+    id: 'v009',
+    name: '西安国际会展中心',
+    city: '西安',
+    province: '陕西省',
+    region: 'west',
+    totalBooths: 2200,
+    exhibitionCount: 48,
+    latitude: 34.3416,
+    longitude: 109.0123,
+  },
+  {
+    id: 'v010',
+    name: '天津梅江会展中心',
+    city: '天津',
+    province: '天津市',
+    region: 'north',
+    totalBooths: 2000,
+    exhibitionCount: 45,
+    latitude: 39.0874,
+    longitude: 117.2681,
+  },
+  {
+    id: 'v011',
+    name: '重庆国际博览中心',
+    city: '重庆',
+    province: '重庆市',
+    region: 'west',
+    totalBooths: 3000,
+    exhibitionCount: 66,
+    latitude: 29.7272,
+    longitude: 106.5325,
+  },
+  {
+    id: 'v012',
+    name: '青岛国际会展中心',
+    city: '青岛',
+    province: '山东省',
+    region: 'east',
+    totalBooths: 1800,
+    exhibitionCount: 42,
+    latitude: 36.0671,
+    longitude: 120.3826,
+  },
+];
+
+export const getVenueById = (id: string): Venue | undefined => {
+  return venues.find(v => v.id === id);
+};
+
+export const getVenuesByRegion = (region: string): Venue[] => {
+  return venues.filter(v => v.region === region);
+};
+
+export const getVenuesByProvince = (province: string): Venue[] => {
+  return venues.filter(v => v.province === province);
+};
