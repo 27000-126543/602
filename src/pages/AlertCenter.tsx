@@ -52,6 +52,22 @@ const AlertCenter = () => {
     setSearchParams(params, { replace: true });
   }, [activeTab, selectedAlertId, searchText, setSearchParams]);
 
+  useEffect(() => {
+    const urlTab = searchParams.get('tab') as TabType;
+    const urlAlertId = searchParams.get('alertId');
+    const urlSearch = searchParams.get('search') || '';
+    
+    if (urlTab && urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+    if ((urlAlertId || '') !== (selectedAlertId || '')) {
+      setSelectedAlertId(urlAlertId);
+    }
+    if (urlSearch !== searchText) {
+      setSearchText(urlSearch);
+    }
+  }, [searchParams]);
+
   const getMyApprovalLevel = () => {
     if (!user) return 0;
     if (user.role === 'venue') return 1;

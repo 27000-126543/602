@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { Venue, Alert, Contract, WeeklyReport, ProvinceData, RankingItem, Exhibitor, AlertStatus } from '@/types';
 import { venues, getVenueById } from '@/data/mock/venues';
 import { alerts, getAlerts, getAlertById, getApprovalRecords, approvalRecords } from '@/data/mock/alerts';
@@ -37,7 +38,9 @@ interface DataState {
  approveAlert: (alertId: string, level: number, comment: string) => boolean;
  rejectAlert: (alertId: string, level: number, comment: string) => boolean;
 }
-export const useDataStore = create<DataState>((set, get) => {
+export const useDataStore = create<DataState>()(
+  persist(
+    (set, get) => {
  const filterByRole = (venueList: Venue[]) => {
  const user = useAuthStore.getState().user;
  if (!user)
@@ -203,4 +206,13 @@ export const useDataStore = create<DataState>((set, get) => {
  return true;
  },
  };
-});
+    },
+    {
+      name: 'data-store',
+      partialize: (state) => ({
+        alerts: state.alerts,
+        approvalRecords: state.approvalRecords,
+      }),
+    }
+  )
+);
