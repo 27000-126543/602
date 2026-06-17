@@ -10,22 +10,35 @@ import {
   MapPin,
   User,
   Filter,
-  ChevronDown,
   Check,
+  Settings,
   X,
-  Settings
+  Eye,
+  EyeOff
 } from 'lucide-react';
-import { User as UserType, UserRole } from '@/types';
+import { UserRole } from '@/types';
 import { roleNames, regionNames } from '@/data/mock/users';
 import { venues } from '@/data/mock/venues';
 
-const mockUsers: UserType[] = [
+interface UserItem {
+  id: string;
+  username: string;
+  name: string;
+  role: UserRole;
+  region?: string;
+  venueId?: string;
+  avatar: string;
+  status: 'active' | 'disabled';
+}
+
+const initialUsers: UserItem[] = [
   {
     id: 'u001',
     username: 'admin',
     name: '张总监',
     role: 'headquarters',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
+    status: 'active',
   },
   {
     id: 'u002',
@@ -34,6 +47,7 @@ const mockUsers: UserType[] = [
     role: 'region',
     region: 'east',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=east',
+    status: 'active',
   },
   {
     id: 'u003',
@@ -42,6 +56,7 @@ const mockUsers: UserType[] = [
     role: 'venue',
     venueId: 'v001',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=shanghai',
+    status: 'active',
   },
   {
     id: 'u004',
@@ -50,6 +65,7 @@ const mockUsers: UserType[] = [
     role: 'region',
     region: 'south',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=south',
+    status: 'active',
   },
   {
     id: 'u005',
@@ -58,6 +74,7 @@ const mockUsers: UserType[] = [
     role: 'venue',
     venueId: 'v002',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=guangzhou',
+    status: 'active',
   },
   {
     id: 'u006',
@@ -66,6 +83,7 @@ const mockUsers: UserType[] = [
     role: 'region',
     region: 'north',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=north',
+    status: 'active',
   },
   {
     id: 'u007',
@@ -74,6 +92,7 @@ const mockUsers: UserType[] = [
     role: 'venue',
     venueId: 'v005',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=chengdu',
+    status: 'disabled',
   },
   {
     id: 'u008',
@@ -82,6 +101,7 @@ const mockUsers: UserType[] = [
     role: 'venue',
     venueId: 'v007',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wuhan',
+    status: 'active',
   },
 ];
 
@@ -104,12 +124,21 @@ const rolePermissions: Record<UserRole, string[]> = {
 };
 
 const PermissionManage = () => {
-  const [users, setUsers] = useState<UserType[]>(mockUsers);
+  const [users, setUsers] = useState<UserItem[]>(initialUsers);
   const [searchText, setSearchText] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'users' | 'roles'>('users');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<UserType | null>(null);
+  const [editingUser, setEditingUser] = useState<UserItem | null>(null);
+  const [formData, setFormData] = useState({
+    username: '',
+    name: '',
+    password: '',
+    role: 'venue' as UserRole,
+    region: 'east',
+    venueId: 'v001',
+  });
+  const [showPassword, setShowPassword] = useState(false);
 
   const filteredUsers = useMemo(() => {
     let result = users;
@@ -136,7 +165,7 @@ const PermissionManage = () => {
     }
   };
 
-  const getRegionOrVenueName = (user: UserType) => {
+  const getRegionOrVenueName = (user: UserItem) => {
     if (user.region) return regionNames[user.region] || '';
     if (user.venueId) {
       const venue = venues.find(v => v.id === user.venueId);
@@ -145,20 +174,104 @@ const PermissionManage = () => {
     return '全国';
   };
 
+  const handleAdd = () => {
+    setEditingUser(null);
+    setFormData({
+      username: '',
+      name: '',
+      password: '',
+      role: 'venue',
+      region: 'east',
+      venueId: 'v001',
+    });
+    setShowAddModal(true);
+  };
+
+  const handleEdit = (user: UserItem) => {
+    setEditingUser(user);
+    setFormData({
+      username: user.username,
+      name: user.name,
+      password: '',
+      role: user.role,
+      region: user.region || 'east',
+      venueId: user.venueId || 'v001',
+    });
+    setShowAddModal(true);
+  };
+
   const handleDelete = (id: string) => {
-    setUsers(users.filter(u => u.id !== id));
+    if (window.confirm('确定要删除该用户吗？')) {
+      setUsers(users.filter(u => u.id !== id));
+    }
+  };
+
+  const handleToggleStatus = (id: string) => {
+    setUsers(users.map(u => 
+      u.id === id 
+        ? { ...u, status: u.status === 'active' ? 'disabled' : 'active' } 
+        : u
+    ));
+  };
+
+  const handleSubmit = () => {
+    if (!formData.username || !formData.name) {
+      alert('请填写完整信息');
+      return;
+    }
+    
+    if (editingUser) {
+      setUsers(users.map(u => 
+        u.id === editingUser.id 
+          ? { 
+              ...u, 
+              username: formData.username, 
+              name: formData.name, 
+              role: formData.role,
+              region: formData.role === 'region' ? formData.region : undefined,
+              venueId: formData.role === 'venue' ? formData.venueId : undefined,
+            } 
+          : u
+      ));
+    } else {
+      if (!formData.password) {
+        alert('请设置密码');
+        return;
+      }
+      
+      const newUser: UserItem = {
+        id: 'u' + Date.now(),
+        username: formData.username,
+        name: formData.name,
+        role: formData.role,
+        region: formData.role === 'region' ? formData.region : undefined,
+        venueId: formData.role === 'venue' ? formData.venueId : undefined,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.username}`,
+        status: 'active',
+      };
+      setUsers([...users, newUser]);
+    }
+    
+    setShowAddModal(false);
+    setEditingUser(null);
+  };
+
+  const stats = {
+    total: users.length,
+    headquarters: users.filter(u => u.role === 'headquarters').length,
+    region: users.filter(u => u.role === 'region').length,
+    venue: users.filter(u => u.role === 'venue').length,
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* 页面头部 */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">权限管理</h1>
           <p className="text-slate-500 mt-1">用户与角色权限配置管理</p>
         </div>
         <button 
-          onClick={() => setShowAddModal(true)}
+          onClick={handleAdd}
           className="px-4 py-2.5 btn-primary flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
@@ -166,7 +279,6 @@ const PermissionManage = () => {
         </button>
       </div>
 
-      {/* 统计卡片 */}
       <div className="grid grid-cols-4 gap-5">
         <div className="card p-5">
           <div className="flex items-center gap-3">
@@ -175,7 +287,7 @@ const PermissionManage = () => {
             </div>
             <div>
               <p className="text-sm text-slate-500">用户总数</p>
-              <p className="text-2xl font-bold text-slate-800">{users.length}</p>
+              <p className="text-2xl font-bold text-slate-800">{stats.total}</p>
             </div>
           </div>
         </div>
@@ -186,9 +298,7 @@ const PermissionManage = () => {
             </div>
             <div>
               <p className="text-sm text-slate-500">集团总部</p>
-              <p className="text-2xl font-bold text-slate-800">
-                {users.filter(u => u.role === 'headquarters').length}
-              </p>
+              <p className="text-2xl font-bold text-slate-800">{stats.headquarters}</p>
             </div>
           </div>
         </div>
@@ -199,9 +309,7 @@ const PermissionManage = () => {
             </div>
             <div>
               <p className="text-sm text-slate-500">区域运营</p>
-              <p className="text-2xl font-bold text-slate-800">
-                {users.filter(u => u.role === 'region').length}
-              </p>
+              <p className="text-2xl font-bold text-slate-800">{stats.region}</p>
             </div>
           </div>
         </div>
@@ -212,15 +320,12 @@ const PermissionManage = () => {
             </div>
             <div>
               <p className="text-sm text-slate-500">会展中心</p>
-              <p className="text-2xl font-bold text-slate-800">
-                {users.filter(u => u.role === 'venue').length}
-              </p>
+              <p className="text-2xl font-bold text-slate-800">{stats.venue}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tab切换 */}
       <div className="flex gap-1 p-1 bg-slate-100 rounded-lg w-fit">
         <button
           onClick={() => setActiveTab('users')}
@@ -246,7 +351,6 @@ const PermissionManage = () => {
 
       {activeTab === 'users' ? (
         <>
-          {/* 筛选栏 */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -270,14 +374,13 @@ const PermissionManage = () => {
                         : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
-                    {role === 'all' ? '全部' : roleNames[role]}
+                    {role === 'all' ? '全部' : roleNames[role as UserRole]}
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* 用户列表 */}
           <div className="card overflow-hidden">
             <table className="w-full">
               <thead className="bg-slate-50">
@@ -301,7 +404,7 @@ const PermissionManage = () => {
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <img
-                            src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}
+                            src={user.avatar}
                             alt={user.name}
                             className="w-10 h-10 rounded-full bg-slate-100"
                           />
@@ -324,25 +427,31 @@ const PermissionManage = () => {
                         <span className="text-sm font-medium text-slate-700">{permissions.length} 项</span>
                       </td>
                       <td className="py-4 px-6">
-                        <span className="inline-flex items-center gap-1.5 text-sm text-success-600">
-                          <span className="w-2 h-2 bg-success-500 rounded-full"></span>
-                          正常
-                        </span>
+                        <button
+                          onClick={() => handleToggleStatus(user.id)}
+                          className={`inline-flex items-center gap-1.5 text-sm ${
+                            user.status === 'active' ? 'text-success-600' : 'text-slate-400'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${
+                            user.status === 'active' ? 'bg-success-500' : 'bg-slate-300'
+                          }`}></span>
+                          {user.status === 'active' ? '正常' : '已停用'}
+                        </button>
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-end gap-2">
                           <button 
-                            onClick={() => {
-                              setEditingUser(user);
-                              setShowAddModal(true);
-                            }}
+                            onClick={() => handleEdit(user)}
                             className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                            title="编辑"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleDelete(user.id)}
                             className="p-2 text-slate-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
+                            title="删除"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -363,7 +472,6 @@ const PermissionManage = () => {
           </div>
         </>
       ) : (
-        /* 角色权限 */
         <div className="grid grid-cols-3 gap-6">
           {(Object.keys(rolePermissions) as UserRole[]).map((role) => {
             const roleStyle = getRoleColor(role);
@@ -404,37 +512,85 @@ const PermissionManage = () => {
         </div>
       )}
 
-      {/* 添加/编辑用户弹窗 */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 animate-slide-up">
-            <h3 className="text-xl font-bold text-slate-800 mb-6">
-              {editingUser ? '编辑用户' : '添加用户'}
-            </h3>
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-slate-800">
+                {editingUser ? '编辑用户' : '添加用户'}
+              </h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
             
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">用户名</label>
-                <input
-                  type="text"
-                  defaultValue={editingUser?.username || ''}
-                  className="input-field w-full"
-                  placeholder="请输入用户名"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    用户名 <span className="text-danger-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    className="input-field w-full"
+                    placeholder="请输入用户名"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    姓名 <span className="text-danger-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="input-field w-full"
+                    placeholder="请输入姓名"
+                  />
+                </div>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">姓名</label>
-                <input
-                  type="text"
-                  defaultValue={editingUser?.name || ''}
-                  className="input-field w-full"
-                  placeholder="请输入姓名"
-                />
-              </div>
+              {!editingUser && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    初始密码 <span className="text-danger-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="input-field w-full pr-10"
+                      placeholder="请设置初始密码"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {editingUser && (
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500">
+                    提示：编辑用户时不修改密码，如需重置密码请联系系统管理员
+                  </p>
+                </div>
+              )}
               
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">角色</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  角色 <span className="text-danger-500">*</span>
+                </label>
                 <div className="grid grid-cols-3 gap-3">
                   {(Object.keys(roleNames) as UserRole[]).map((role) => {
                     const rs = getRoleColor(role);
@@ -442,8 +598,10 @@ const PermissionManage = () => {
                     return (
                       <button
                         key={role}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, role })}
                         className={`p-3 rounded-xl border-2 transition-all ${
-                          editingUser?.role === role
+                          formData.role === role
                             ? `border-primary-500 ${rs.bg}`
                             : 'border-slate-200 hover:border-slate-300'
                         }`}
@@ -456,32 +614,68 @@ const PermissionManage = () => {
                 </div>
               </div>
               
+              {formData.role === 'region' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    管辖区域 <span className="text-danger-500">*</span>
+                  </label>
+                  <select
+                    value={formData.region}
+                    onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                    className="input-field w-full"
+                  >
+                    {Object.entries(regionNames).map(([key, value]) => (
+                      <option key={key} value={key}>{value}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
+              {formData.role === 'venue' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    所属展馆 <span className="text-danger-500">*</span>
+                  </label>
+                  <select
+                    value={formData.venueId}
+                    onChange={(e) => setFormData({ ...formData, venueId: e.target.value })}
+                    className="input-field w-full"
+                  >
+                    {venues.map((venue) => (
+                      <option key={venue.id} value={venue.id}>{venue.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">初始密码</label>
-                <input
-                  type="password"
-                  defaultValue="123456"
-                  className="input-field w-full"
-                  placeholder="请输入初始密码"
-                />
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  权限预览
+                </label>
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <div className="flex flex-wrap gap-2">
+                    {rolePermissions[formData.role].map((perm, index) => (
+                      <span key={index} className="px-2 py-1 bg-white text-slate-600 text-xs rounded-md border border-slate-200">
+                        {perm}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-3">
+                    共 {rolePermissions[formData.role].length} 项权限
+                  </p>
+                </div>
               </div>
             </div>
             
             <div className="flex gap-3 mt-8">
               <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setEditingUser(null);
-                }}
+                onClick={() => setShowAddModal(false)}
                 className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
               >
                 取消
               </button>
               <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setEditingUser(null);
-                }}
+                onClick={handleSubmit}
                 className="flex-1 py-2.5 btn-primary"
               >
                 {editingUser ? '保存修改' : '确认添加'}

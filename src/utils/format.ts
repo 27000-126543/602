@@ -48,3 +48,13 @@ export const getChangeIcon = (change: number): 'up' | 'down' | 'equal' => {
   if (change < 0) return 'down';
   return 'equal';
 };
+
+const roleNameMap: Record<string, string> = {
+  headquarters: '集团总部',
+  region: '区域运营',
+  venue: '会展中心',
+};
+
+export const formatRoleName = (role: string): string => {
+  return roleNameMap[role] || role;
+};

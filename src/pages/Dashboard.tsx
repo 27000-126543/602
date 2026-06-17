@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { 
   Users, 
   MapPin, 
@@ -15,8 +15,6 @@ import LineChart from '@/components/charts/LineChart';
 import AlertCard from '@/components/common/AlertCard';
 import { useDataStore } from '@/store/useDataStore';
 import { formatNumber, formatPercent } from '@/utils/format';
-import { getSatisfactionRanking, getProvinceData } from '@/data/mock/provinces';
-import { getIndustryDistribution, getTrafficComparison } from '@/data/mock/reports';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -28,7 +26,12 @@ const Dashboard = () => {
     getBoothOccupancyRate, 
     getAvgSatisfaction,
     getExecutionEfficiency,
+    getProvinceData,
+    getSatisfactionRanking,
+    getIndustryDistribution,
+    getTrafficComparison,
     selectedProvince,
+    selectedIndustry,
     setSelectedProvince,
   } = useDataStore();
 
@@ -61,12 +64,16 @@ const Dashboard = () => {
     setSelectedProvince(selectedProvince === name ? null : name);
   };
 
-  const lineChartData = {
+  const lineChartData = useMemo(() => ({
     dates: trafficData.weeks,
     series: [
       { name: '实际观众', data: trafficData.actualVisitors, areaStyle: true, color: '#0A2540' },
       { name: '预期观众', data: trafficData.expectedVisitors, color: '#94A3B8' },
     ],
+  }), [trafficData]);
+
+  const handleAlertClick = (alertId: string) => {
+    navigate(`/alerts?alertId=${alertId}`);
   };
 
   return (
@@ -74,7 +81,14 @@ const Dashboard = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">运营总览</h1>
-          <p className="text-slate-500 mt-1">实时监控全国会展运营数据</p>
+          <p className="text-slate-500 mt-1">
+            实时监控全国会展运营数据
+            {selectedIndustry !== 'all' && (
+              <span className="ml-2 px-2 py-0.5 bg-primary-100 text-primary-700 rounded text-xs font-medium">
+                {selectedIndustry}
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <span className="w-2 h-2 bg-success-500 rounded-full pulse-dot text-success-500"></span>
@@ -283,7 +297,9 @@ const Dashboard = () => {
           
           <div className="grid grid-cols-2 gap-4">
             {pendingAlerts.slice(0, 4).map((alert) => (
-              <AlertCard key={alert.id} alert={alert} compact />
+              <div key={alert.id} onClick={() => handleAlertClick(alert.id)} className="cursor-pointer">
+                <AlertCard alert={alert} compact />
+              </div>
             ))}
           </div>
         </div>

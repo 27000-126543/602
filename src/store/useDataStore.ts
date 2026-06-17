@@ -87,14 +87,14 @@ export const useDataStore = create<DataState>((set, get) => {
  return getAbnormalContracts();
  },
  getWeeklyReport: () => getWeeklyReport(),
- getProvinceData: () => getProvinceData(),
- getSatisfactionRanking: () => getSatisfactionRanking(),
+ getProvinceData: () => getProvinceData(get().selectedIndustry),
+ getSatisfactionRanking: () => getSatisfactionRanking(get().selectedIndustry),
  get7DayVisitorTrend: (venueId) => get7DayVisitorTrend(venueId),
  getTodayVisitors: () => getTodayVisitors(),
  getTotalVisitors: () => getTotalVisitors(),
  getExhibitorStats: (venueId) => getExhibitorStats(venueId),
- getTrafficComparison: () => getTrafficComparison(),
- getIndustryDistribution: () => getIndustryDistribution(),
+ getTrafficComparison: () => getTrafficComparison(get().selectedIndustry),
+ getIndustryDistribution: () => getIndustryDistribution(get().selectedIndustry),
  getBoothOccupancyRate: () => {
  const filteredVenues = filterByRole(venues);
  const totalBooths = filteredVenues.reduce((sum, v) => sum + v.totalBooths, 0);

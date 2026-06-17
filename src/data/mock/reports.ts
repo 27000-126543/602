@@ -1,5 +1,16 @@
 import { WeeklyReport } from '@/types';
 
+const industryFactors: Record<string, number> = {
+  '电子信息': 1.25,
+  '机械制造': 0.95,
+  '服装纺织': 0.85,
+  '食品饮料': 0.75,
+  '建筑建材': 0.7,
+  '医疗健康': 0.9,
+  '汽车配件': 0.72,
+  '文化创意': 0.6,
+};
+
 export const weeklyReport: WeeklyReport = {
   weekStart: '2026-06-09',
   weekEnd: '2026-06-15',
@@ -31,16 +42,26 @@ export const weeklyReport: WeeklyReport = {
 
 export const getWeeklyReport = (): WeeklyReport => weeklyReport;
 
-export const getTrafficComparison = () => {
+export const getTrafficComparison = (industry?: string) => {
   const weeks = ['第23周', '第24周', '第25周', '第26周', '第27周', '第28周'];
-  const actualVisitors = [115000, 128000, 132000, 118000, 129500, 125680];
-  const expectedVisitors = [120000, 125000, 130000, 125000, 130000, 130000];
+  const baseActual = [115000, 128000, 132000, 118000, 129500, 125680];
+  const baseExpected = [120000, 125000, 130000, 125000, 130000, 130000];
   
-  return { weeks, actualVisitors, expectedVisitors };
+  if (!industry || industry === 'all') {
+    return { weeks, actualVisitors: baseActual, expectedVisitors: baseExpected };
+  }
+  
+  const factor = industryFactors[industry] || 1;
+  
+  return {
+    weeks,
+    actualVisitors: baseActual.map(v => Math.round(v * factor)),
+    expectedVisitors: baseExpected.map(v => Math.round(v * factor * 1.05)),
+  };
 };
 
-export const getIndustryDistribution = () => {
-  return [
+export const getIndustryDistribution = (highlightIndustry?: string) => {
+  const baseData = [
     { name: '电子信息', value: 285, percentage: 23.5 },
     { name: '机械制造', value: 210, percentage: 17.3 },
     { name: '服装纺织', value: 175, percentage: 14.4 },
@@ -50,4 +71,13 @@ export const getIndustryDistribution = () => {
     { name: '汽车配件', value: 95, percentage: 7.8 },
     { name: '文化创意', value: 42, percentage: 3.6 },
   ];
+  
+  if (!highlightIndustry || highlightIndustry === 'all') {
+    return baseData;
+  }
+  
+  return baseData.map(item => ({
+    ...item,
+    highlighted: item.name === highlightIndustry,
+  }));
 };

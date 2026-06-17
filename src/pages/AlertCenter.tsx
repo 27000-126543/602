@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   AlertTriangle, 
   Clock, 
@@ -11,19 +11,28 @@ import {
   User,
   MessageSquare,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  Info
 } from 'lucide-react';
 import { useDataStore } from '@/store/useDataStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { alertTypeNames, alertLevelNames, alertStatusNames } from '@/data/mock/alerts';
-import { formatDateTime } from '@/utils/format';
+import { formatDateTime, formatRoleName } from '@/utils/format';
 import { Alert, TabType } from '@/types';
+import { useSearchParams } from 'react-router-dom';
 
 const AlertCenter = () => {
   const { getAlerts, getAlertById, getApprovalRecords, approveAlert, rejectAlert } = useDataStore();
-  const { user, hasPermission } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<TabType>('all');
-  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
+  const { user } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const tab = searchParams.get('tab');
+    return (tab as TabType) || 'all';
+  });
+  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(() => {
+    return searchParams.get('alertId');
+  });
   const [searchText, setSearchText] = useState('');
   const [approvalComment, setApprovalComment] = useState('');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
@@ -33,13 +42,33 @@ const AlertCenter = () => {
   const selectedAlert = selectedAlertId ? getAlertById(selectedAlertId) : null;
   const approvalRecords = selectedAlertId ? getApprovalRecords(selectedAlertId) : [];
 
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (activeTab !== 'all') params.tab = activeTab;
+    if (selectedAlertId) params.alertId = selectedAlertId;
+    setSearchParams(params, { replace: true });
+  }, [activeTab, selectedAlertId, setSearchParams]);
+
+  const getMyApprovalLevel = () => {
+    if (!user) return 0;
+    if (user.role === 'venue') return 1;
+    if (user.role === 'region') return 2;
+    if (user.role === 'headquarters') return 3;
+    return 0;
+  };
+
   const filteredAlerts = useMemo(() => {
-    if (!searchText) return alerts;
-    return alerts.filter(a => 
-      a.title.includes(searchText) || 
-      a.venueName.includes(searchText) ||
-      a.description.includes(searchText)
-    );
+    let result = alerts;
+    
+    if (searchText) {
+      result = result.filter(a => 
+        a.title.includes(searchText) || 
+        a.venueName.includes(searchText) ||
+        a.description.includes(searchText)
+      );
+    }
+    
+    return result;
   }, [alerts, searchText]);
 
   const tabs: { key: TabType; label: string; count: number }[] = [
@@ -68,39 +97,33 @@ const AlertCenter = () => {
     return selectedAlert.currentApprovalLevel;
   };
 
-  const canApprove = () => {
+  const isMyTurnToApprove = () => {
     if (!selectedAlert || !user) return false;
     if (selectedAlert.status === 'resolved' || selectedAlert.status === 'rejected') return false;
     
-    const currentLevel = selectedAlert.currentApprovalLevel;
-    const nextLevel = currentLevel + 1;
+    const myLevel = getMyApprovalLevel();
+    const nextLevel = selectedAlert.currentApprovalLevel + 1;
     
-    if (user.role === 'venue' && hasPermission('alerts_approve_level1') && nextLevel === 1) return true;
-    if (user.role === 'region' && hasPermission('alerts_approve_level2') && nextLevel === 2) return true;
-    if (user.role === 'headquarters' && hasPermission('alerts_approve_level3') && nextLevel === 3) return true;
-    
-    return false;
+    return myLevel === nextLevel;
   };
 
   const handleApprove = () => {
-    if (!selectedAlert) return;
+    if (!selectedAlert || !isMyTurnToApprove()) return;
     const nextLevel = selectedAlert.currentApprovalLevel + 1;
     const success = approveAlert(selectedAlert.id, nextLevel, approvalComment);
     if (success) {
       setShowApprovalModal(false);
       setApprovalComment('');
-      setSelectedAlertId(selectedAlert.id);
     }
   };
 
   const handleReject = () => {
-    if (!selectedAlert) return;
+    if (!selectedAlert || !isMyTurnToApprove()) return;
     const nextLevel = selectedAlert.currentApprovalLevel + 1;
     const success = rejectAlert(selectedAlert.id, nextLevel, approvalComment);
     if (success) {
       setShowApprovalModal(false);
       setApprovalComment('');
-      setSelectedAlertId(selectedAlert.id);
     }
   };
 
@@ -116,15 +139,33 @@ const AlertCenter = () => {
     return names[nextLevel] || '';
   };
 
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    setSelectedAlertId(null);
+  };
+
+  const handleAlertClick = (alertId: string) => {
+    setSelectedAlertId(alertId === selectedAlertId ? null : alertId);
+  };
+
+  const myLevel = getMyApprovalLevel();
+
   return (
     <div className="h-full flex flex-col animate-fade-in">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">预警中心</h1>
-        <p className="text-slate-500 mt-1">智能预警监控与三级审批流程管理</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">预警中心</h1>
+          <p className="text-slate-500 mt-1">智能预警监控与三级审批流程管理</p>
+        </div>
+        {user && (
+          <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
+            <Info className="w-4 h-4" />
+            <span>您的审批级别：第{myLevel}级 - {getNextLevelName() || '全部已完成'}</span>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex gap-6 min-h-0">
-        {/* 左侧预警列表 */}
         <div className="w-96 flex flex-col card p-5 min-h-0">
           <div className="flex items-center gap-2 mb-4">
             <div className="relative flex-1">
@@ -146,7 +187,7 @@ const AlertCenter = () => {
             {tabs.map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => handleTabChange(tab.key)}
                 className={`flex-1 py-2 px-2 text-xs font-medium rounded-md transition-all ${
                   activeTab === tab.key
                     ? 'bg-white text-primary-600 shadow-sm'
@@ -163,7 +204,7 @@ const AlertCenter = () => {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-3 -mr-2 pr-2">
+          <div className="flex-1 overflow-y-auto space-y-3 -mr-2 pr-2 scrollbar-thin">
             {filteredAlerts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                 <AlertTriangle className="w-12 h-12 mb-3 opacity-30" />
@@ -175,7 +216,8 @@ const AlertCenter = () => {
                   key={alert.id}
                   alert={alert}
                   isSelected={selectedAlertId === alert.id}
-                  onClick={() => setSelectedAlertId(alert.id)}
+                  isMyTurn={alert.status !== 'resolved' && alert.status !== 'rejected' && alert.currentApprovalLevel + 1 === myLevel}
+                  onClick={() => handleAlertClick(alert.id)}
                   levelColors={levelColors}
                   statusColors={statusColors}
                 />
@@ -184,11 +226,9 @@ const AlertCenter = () => {
           </div>
         </div>
 
-        {/* 右侧预警详情 */}
-        <div className="flex-1 card p-6 min-h-0 overflow-y-auto">
+        <div className="flex-1 card p-6 min-h-0 overflow-y-auto scrollbar-thin">
           {selectedAlert ? (
             <div className="space-y-6">
-              {/* 返回按钮和标题 */}
               <div className="flex items-start gap-4">
                 <button
                   onClick={() => setSelectedAlertId(null)}
@@ -210,7 +250,6 @@ const AlertCenter = () => {
                 </div>
               </div>
 
-              {/* 预警信息卡片 */}
               <div className={`p-5 rounded-xl ${levelColors[selectedAlert.level].bg} border ${levelColors[selectedAlert.level].border}`}>
                 <p className="text-slate-700 leading-relaxed">{selectedAlert.description}</p>
                 <div className="flex items-center gap-6 mt-4 text-sm">
@@ -225,7 +264,6 @@ const AlertCenter = () => {
                 </div>
               </div>
 
-              {/* 关键指标 */}
               {selectedAlert.data && (
                 <div className="grid grid-cols-3 gap-4">
                   {selectedAlert.data.visitorDropRate !== undefined && (
@@ -263,7 +301,6 @@ const AlertCenter = () => {
                 </div>
               )}
 
-              {/* 三级审批流程 */}
               <div>
                 <h3 className="text-lg font-semibold text-slate-800 mb-4">三级审批流程</h3>
                 <div className="relative">
@@ -275,10 +312,12 @@ const AlertCenter = () => {
                         record={record}
                         isCurrent={getCurrentApprovalLevel() === record.level && 
                           selectedAlert.status !== 'resolved' && 
-                          selectedAlert.status !== 'rejected'}
+                          selectedAlert.status !== 'rejected' &&
+                          record.status === 'pending'}
                         isCompleted={record.status === 'approved' || 
                           (record.level < getCurrentApprovalLevel()) ||
                           selectedAlert.status === 'resolved'}
+                        isRejected={record.status === 'rejected'}
                         isLast={index === approvalRecords.length - 1}
                       />
                     ))}
@@ -286,13 +325,12 @@ const AlertCenter = () => {
                 </div>
               </div>
 
-              {/* 审批操作按钮 */}
-              {canApprove() && (
+              {isMyTurnToApprove() && (
                 <div className="p-4 bg-primary-50 rounded-xl border border-primary-100">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium text-primary-700">待您审批</p>
-                      <p className="text-sm text-primary-500">当前：{getNextLevelName()}</p>
+                      <p className="text-sm text-primary-500">当前级别：{getNextLevelName()}</p>
                     </div>
                     <div className="flex gap-3">
                       <button
@@ -313,6 +351,20 @@ const AlertCenter = () => {
                   </div>
                 </div>
               )}
+
+              {!isMyTurnToApprove() && selectedAlert.status !== 'resolved' && selectedAlert.status !== 'rejected' && (
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    <Info className="w-5 h-5 text-slate-400" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-600">非您审批级别</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        当前正在：{getNextLevelName()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-slate-400">
@@ -324,7 +376,6 @@ const AlertCenter = () => {
         </div>
       </div>
 
-      {/* 审批弹窗 */}
       {showApprovalModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-fade-in">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-slide-up">
@@ -338,7 +389,7 @@ const AlertCenter = () => {
             </p>
             <div className="mb-6">
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                审批意见
+                审批意见 <span className="text-slate-400 font-normal">（可选）</span>
               </label>
               <textarea
                 value={approvalComment}
@@ -375,23 +426,27 @@ const AlertCenter = () => {
 interface AlertListItemProps {
   alert: Alert;
   isSelected: boolean;
+  isMyTurn: boolean;
   onClick: () => void;
   levelColors: Record<string, any>;
   statusColors: Record<string, string>;
 }
 
-const AlertListItem = ({ alert, isSelected, onClick, levelColors, statusColors }: AlertListItemProps) => {
+const AlertListItem = ({ alert, isSelected, isMyTurn, onClick, levelColors, statusColors }: AlertListItemProps) => {
   const level = levelColors[alert.level];
 
   return (
     <div
       onClick={onClick}
-      className={`p-4 rounded-xl cursor-pointer transition-all border ${
+      className={`p-4 rounded-xl cursor-pointer transition-all border relative ${
         isSelected 
           ? `border-primary-300 bg-primary-50 shadow-md` 
           : `border-transparent ${level.bg} hover:shadow-md`
       }`}
     >
+      {isMyTurn && (
+        <div className="absolute -right-1 -top-1 w-3 h-3 bg-accent-500 rounded-full pulse-dot border-2 border-white"></div>
+      )}
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${level.dot}`}></div>
@@ -417,10 +472,11 @@ interface ApprovalStepItemProps {
   record: any;
   isCurrent: boolean;
   isCompleted: boolean;
+  isRejected: boolean;
   isLast: boolean;
 }
 
-const ApprovalStepItem = ({ record, isCurrent, isCompleted }: ApprovalStepItemProps) => {
+const ApprovalStepItem = ({ record, isCurrent, isCompleted, isRejected }: ApprovalStepItemProps) => {
   const getStatusIcon = () => {
     if (record.status === 'approved') return <CheckCircle className="w-5 h-5 text-success-500" />;
     if (record.status === 'rejected') return <XCircle className="w-5 h-5 text-danger-500" />;
@@ -441,13 +497,14 @@ const ApprovalStepItem = ({ record, isCurrent, isCompleted }: ApprovalStepItemPr
         {getStatusIcon()}
       </div>
       <div className={`p-4 rounded-xl ${
+        isRejected ? 'bg-danger-50 border border-danger-100' :
         isCurrent ? 'bg-primary-50 border border-primary-200' : 
         isCompleted ? 'bg-slate-50' : 'bg-slate-50/50'
       }`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <span className={`text-sm font-semibold ${
-              isCompleted ? 'text-slate-800' : 'text-slate-500'
+              isCompleted || isRejected ? 'text-slate-800' : 'text-slate-500'
             }`}>
               {record.levelName}
             </span>
@@ -465,7 +522,7 @@ const ApprovalStepItem = ({ record, isCurrent, isCompleted }: ApprovalStepItemPr
             <div className="flex items-center gap-2 mb-2">
               <User className="w-4 h-4 text-slate-400" />
               <span className="text-sm text-slate-600">
-                {record.approver} · {record.approverRole}
+                {record.approver} · {formatRoleName(record.approverRole)}
               </span>
             </div>
             {record.comment && (
