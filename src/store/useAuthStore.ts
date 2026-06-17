@@ -26,8 +26,8 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       
       login: (username, password, role) => {
-        const user = loginUser(username, password);
-        if (user && user.role === role) {
+        const user = loginUser(username, password, role);
+        if (user) {
           set({ user, isAuthenticated: true });
           return true;
         }
